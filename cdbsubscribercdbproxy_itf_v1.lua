@@ -1,4 +1,4 @@
--- 这个脚本用来解析eNB version 14.3的60100端口的消息，CDB proxy <==> CDB subscriber
+-- 这个脚本用来解析eNB version 14.3的60100端口的消息
 
 -- How to use it
 -- 1. make sure your wireshark support Lua, open your wireshark, click "help"-->"about wireshark",
@@ -17,8 +17,8 @@
 -- 4. now, you can open a pcap file to browse your CDB interface data after decoded.
 
 do
-    --创建一个Proto类的对象，表示本插件解析的是CDB proxy和CDB subscriber之间的接口消息
-    local p_cdbsubscriberitf = Proto("cdbsubscriberitf","CDBsubscriberCDBproxyItf");
+    --创建一个Proto类的对象
+    local P_cdbproxyitf = Proto("cdbproxyitf","CDBproxyItf");
 
 	--从接口文件enodeb.h中得到，目录位于/enodeb_itf/enodeb/里面，还有一部分接口文件定义在/enodeb_itf/oam/中
 	local vs_familys = {
@@ -139,6 +139,33 @@ do
 	
 	-- 从RRT_DMD_Itf.h的枚举类型Rrt_Dmd_msgTypes中得到
 	local vs_opcode = {
+		[1] = "MT_CALLP_subscribe",
+		[2] = "MT_CALLP_getAttributeReq",
+		[3] = "MT_CALLP_getAttributeRes",
+		[4] = "MT_CALLP_getAttributeFailure",
+		[5] = "MT_CALLP_createObjectReq",
+		[6] = "MT_CALLP_createObjectRes",
+		[7] = "MT_CALLP_deleteObjectReq",
+		[8] = "MT_CALLP_deleteObjectRes",
+		[9] = "MT_CALLP_modifyObjectReq",
+		[10] = "MT_CALLP_modifyObjectRes",
+		[11] = "MT_CALLP_setAttributeReq",
+		[12] = "MT_CALLP_setAttributeRes",
+		[13] = "MT_CALLP_avcnIndication",
+		[14] = "MT_CALLP_readyIndication",
+		[15] = "MT_CALLP_faultIndication",
+		[16] = "MT_CALLP_eventIndication",
+		[17] = "MT_CALLP_createObjectIndication",
+		[18] = "MT_CALLP_deleteObjectIndication",
+		[19] = "MT_CALLP_modifyObjectIndication",
+		[20] = "MT_CALLP_transactionBegin",
+		[21] = "MT_CALLP_transactionEnd",
+		[22] = "MT_CALLP_transactionEndResponse",
+		[23] = "MT_CALLP_actionReq",
+		[24] = "MT_CALLP_actionRes",
+		[25] = "MT_CALLP_measurementIndication",
+		[26] = "MT_CALLP_getDynAttributeReq",
+		[27] = "MT_CALLP_getDynAttributeRes",		
 		[100] = "MT_OAMC_getAttributeReq",
 		[101] = "MT_OAMC_getAttributeRes",
 		[102] = "MT_OAMC_getDynAttributeReq",
@@ -241,124 +268,136 @@ do
 
 	--来自oam_ro_attribute.h，位于/enodeb_itf/oam
 	local OAM_L_ATTRIBUTE_NAME_MAX = 199
-	local OAM_L_CLASSREF_MAX = 304
+	local OAM_L_CLASSREF_MAX = 311
 	
     --创建ProtoField对象，就是主界面中部Packet Details窗格中能显示的那些属性
-    local f_family = ProtoField.uint16("cdbsubscriberitf.family","family",base.DEC,vs_familys)
-    local f_opcode = ProtoField.uint16("cdbsubscriberitf.opcode","opcode",base.DEC,vs_opcode)
-	local f_length = ProtoField.uint32("cdbsubscriberitf.length","len",base.DEC)
-	local f_transactionid = ProtoField.uint32("cdbsubscriberitf.transactionid","transactionid",base.DEC)
-	local f_destclass = ProtoField.uint16("cdbsubscriberitf.destclass","destclass",base.DEC,vs_classes)
-	local f_srcclass = ProtoField.uint16("cdbsubscriberitf.srcclass","srcclass",base.DEC,vs_classes)
-	local f_destinst = ProtoField.uint32("cdbsubscriberitf.destinst","destinst",base.HEX)
-	local f_srcinst = ProtoField.uint32("cdbsubscriberitf.srcinst","srcinst",base.HEX)
-	local f_tracekey = ProtoField.uint32("cdbsubscriberitf.tracekey","tracekey",base.HEX)
-	local f_oamclassref = ProtoField.uint16("cdbsubscriberitf.oamclassref","oamclassref",base.DEC)
-	local f_oaminstanceindex = ProtoField.uint16("cdbsubscriberitf.oaminstanceindex","oaminstanceindex",base.DEC)
-	local f_oamstatus = ProtoField.uint16("cdbsubscriberitf.oamstatus","oamstatus",base.DEC,{[0]="ACK"})
-	local f_nbrofinstances = ProtoField.uint16("cdbsubscriberitf.nbrofinstances","nbrofinstances",base.DEC)
-	local f_indexarray = ProtoField.string("cdbsubscriberitf.indexarray","indexarray",base.HEX)
-	local f_payloadlen = ProtoField.uint32("cdbsubscriberitf.payloadlen","payloadlen",base.DEC)
-	local f_payload = ProtoField.string("cdbsubscriberitf.payload","payload",base.NONE)
-	local f_nbrofchgattr = ProtoField.uint16("cdbsubscriberitf.nbrofchgattr","nbrofchgattr",base.DEC)
-	local f_chgattributes = ProtoField.string("cdbsubscriberitf.chgattributes","chgattributes",base.NONE)
-	local f_nbAttributesElements = ProtoField.uint16("cdbsubscriberitf.nbAttributesElements","nbAttributesElements",base.DEC)
-	local f_changeref = ProtoField.string("cdbsubscriberitf.changeref","changeref",base.NONE)
-	local f_successflag = ProtoField.uint16("cdbsubscriberitf.successflag","successflag",base.DEC,{[0]="ACK",[1]="NACK"})
-	local f_errordetail = ProtoField.string("cdbsubscriberitf.errordetail","errordetail",base.NONE)
-	local f_bulkadditionaltext = ProtoField.string("cdbsubscriberitf.bulkadditionaltext","bulkadditionaltext",base.NONE)
-	local f_nbravcninfores = ProtoField.uint16("cdbsubscriberitf.nbravcninfores","nbravcninfores",base.DEC)
-	local f_x2lcc_lcc = ProtoField.uint32("cdbsubscriberitf.x2lcc_lcc","x2lcc_lcc",base.DEC)
-	local f_x2lcc_lccvalue = ProtoField.uint32("cdbsubscriberitf.x2lcc_lccvalue","x2lcc_lccvalue",base.DEC)
-	local f_x2lcc_addtionaltext = ProtoField.string("cdbsubscriberitf.x2lcc_addtionaltext","x2lcc_addtionaltext",base.NONE)
-	local f_cmlcc_lcc = ProtoField.uint32("cdbsubscriberitf.cmlcc_lcc","cmlcc_lcc",base.DEC)
-	local f_cmlcc_lccvalue = ProtoField.uint32("cdbsubscriberitf.cmlcc_lccvalue","cmlcc_lccvalue",base.DEC)
-	local f_cmlcc_addtionaltext = ProtoField.string("cdbsubscriberitf.cmlcc_addtionaltext","cmlcc_addtionaltext",base.NONE)
-	local f_avcninfores_lcc = ProtoField.uint32("cdbsubscriberitf.avcninfores_lcc","avcninfores_lcc",base.DEC)
-	local f_avcninfores_lccvalue = ProtoField.uint32("cdbsubscriberitf.avcninfores_lccvalue","avcninfores_lccvalue",base.DEC)
-	local f_avcninfores_addtionaltext = ProtoField.string("cdbsubscriberitf.avcninfores_addtionaltext","avcninfores_addtionaltext",base.NONE)
-	local f_anrresettype = ProtoField.uint32("cdbsubscriberitf.anrresettype","anrresettype",base.DEC,vs_anrresettypes)
-	local f_forceincx2accesslcc = ProtoField.uint8("cdbsubscriberitf.forceincx2accesslcc","forceincx2accesslcc",base.DEC)
-	local f_nbrofchangedobj = ProtoField.uint16("cdbsubscriberitf.nbrofchangedobj","nbrofchangedobj",base.DEC)
-	local f_parentoamclassref = ProtoField.uint16("cdbsubscriberitf.parentoamclassref","parentoamclassref",base.DEC)
-	local f_parentoaminstanceid = ProtoField.uint16("cdbsubscriberitf.parentoaminstanceid","parentoaminstanceid",base.DEC)
-	local f_changetype = ProtoField.uint16("cdbsubscriberitf.changetype","changetype",base.DEC)
-	local f_changeweight = ProtoField.uint16("cdbsubscriberitf.changeweight","changeweight",base.DEC)
-	local f_exchangeweight = ProtoField.uint16("cdbsubscriberitf.exchangeweight","exchangeweight",base.DEC)
-	local f_forceincmolcc = ProtoField.uint8("cdbsubscriberitf.forceincmolcc","forceincmolcc",base.DEC)
-	local f_nbrofchangerefs = ProtoField.uint16("cdbsubscriberitf.nbrofchangerefs","nbrofchangerefs",base.DEC)
-	local f_changerefs = ProtoField.string("cdbsubscriberitf.changerefs","changerefs",base.NONE)
-	local f_actiontype = ProtoField.uint32("cdbsubscriberitf.actiontype","actiontype",base.DEC)
-	local f_actionerrormessagelen = ProtoField.uint32("cdbsubscriberitf.actionerrormessagelen","actionerrormessagelen",base.DEC)
-	local f_actionerrormessage = ProtoField.string("cdbsubscriberitf.actionerrormessage","actionerrormessage",base.NONE)
-	local f_fdnlength = ProtoField.uint16("cdbsubscriberitf.fdnlength","fdnlength",base.DEC)
-	local f_reference = ProtoField.uint32("cdbsubscriberitf.reference","reference",base.DEC)
-	local f_status = ProtoField.uint16("cdbsubscriberitf.status","status",base.DEC)
-	local f_cdbstatus = ProtoField.uint16("cdbsubscriberitf.cdbstatus","cdbstatus",base.DEC,{[0]="UNLOCK",[1]="LOCK"})
-	local f_triggeractiontype = ProtoField.uint32("cdbsubscriberitf.triggeractiontype","triggeractiontype",base.DEC,vs_triggeractiontype)
-	local f_objecttype = ProtoField.uint32("cdbsubscriberitf.objecttype","objecttype",base.DEC)
-	local f_objectinstance = ProtoField.uint32("cdbsubscriberitf.objectinstance","objectinstance",base.DEC)
-	local f_faultnumber = ProtoField.uint16("cdbsubscriberitf.faultnumber","faultnumber",base.DEC)
-	local f_faultsubnumber = ProtoField.uint16("cdbsubscriberitf.faultsubnumber","faultsubnumber",base.DEC)
-	local f_manuinfolength = ProtoField.uint32("cdbsubscriberitf.manuinfolength","manuinfolength",base.DEC)
-	local f_manuinfo = ProtoField.string("cdbsubscriberitf.manuinfo","manuinfo",base.NONE)
-	local f_perceivedseverity = ProtoField.uint32("cdbsubscriberitf.perceivedseverity","perceivedseverity",base.DEC)
-	local f_nbAttributes = ProtoField.uint16("cdbsubscriberitf.nbAttributes","nbAttributes",base.DEC)
-	local f_attributes = ProtoField.string("cdbsubscriberitf.attributes","attributes",base.NONE)
-	local f_nbrOfAvcnAttr = ProtoField.uint16("cdbsubscriberitf.nbrOfAvcnAttr","nbrOfAvcnAttr",base.DEC)
-	local f_avcnAttributes = ProtoField.string("cdbsubscriberitf.avcnAttributes","avcnAttributes",base.NONE)
-	local f_nbrOfSvcnAttr = ProtoField.uint16("cdbsubscriberitf.nbrOfSvcnAttr","nbrOfSvcnAttr",base.DEC)
-	local f_svcnAttributes = ProtoField.string("cdbsubscriberitf.svcnAttributes","svcnAttributes",base.NONE)
-	local f_alarmLastChangeCounter = ProtoField.uint32("cdbsubscriberitf.alarmLastChangeCounter","alarmLastChangeCounter",base.DEC)
-	local f_len_managedObjectInstance = ProtoField.uint32("cdbsubscriberitf.len_managedObjectInstance","len_managedObjectInstance",base.DEC)
-	local f_managedObjectInstance = ProtoField.uint32("cdbsubscriberitf.managedObjectInstance","managedObjectInstance",base.DEC)
-	local f_len_alarmTime = ProtoField.uint32("cdbsubscriberitf.len_alarmTime","len_alarmTime",base.DEC)
-	local f_alarmTime = ProtoField.uint8("cdbsubscriberitf.alarmTime","alarmTime",base.DEC)
-	local f_alarmType = ProtoField.int32("cdbsubscriberitf.alarmType","alarmType",base.DEC)
-	local f_alarmSeverity = ProtoField.int32("cdbsubscriberitf.alarmSeverity","alarmSeverity",base.DEC)
-	local f_alarmId = ProtoField.int32("cdbsubscriberitf.alarmId","alarmId",base.DEC)
-	local f_len_alarmAdditionalInformation = ProtoField.uint32("cdbsubscriberitf.len_alarmAdditionalInformation","len_alarmAdditionalInformation",base.DEC)
-	local f_alarmAdditionalInformation = ProtoField.uint8("cdbsubscriberitf.alarmAdditionalInformation","alarmAdditionalInformation",base.DEC)
-	local f_alarmOperationalState = ProtoField.int32("cdbsubscriberitf.alarmOperationalState","alarmOperationalState",base.DEC)
-	local f_alarmAvailabilityStatus = ProtoField.uint32("cdbsubscriberitf.alarmAvailabilityStatus","alarmAvailabilityStatus",base.DEC)
-	local f_numberOfFilteredAlarmsSinceLastReporting = ProtoField.int32("cdbsubscriberitf.numberOfFilteredAlarmsSinceLastReporting","numberOfFilteredAlarmsSinceLastReporting",base.DEC)
-	local f_len_lastFilteringTime = ProtoField.uint32("cdbsubscriberitf.len_lastFilteringTime","len_lastFilteringTime",base.DEC)
-	local f_lastFilteringTime = ProtoField.uint8("cdbsubscriberitf.lastFilteringTime","lastFilteringTime",base.DEC)
-	local f_lastFilteringType = ProtoField.int32("cdbsubscriberitf.lastFilteringType","lastFilteringType",base.DEC)
-	local f_alarmNature = ProtoField.int32("cdbsubscriberitf.alarmNature","alarmNature",base.DEC)
-	local f_len_alarmMonitoredAttribute = ProtoField.uint32("cdbsubscriberitf.len_alarmMonitoredAttribute","len_alarmMonitoredAttribute",base.DEC)
-	local f_len_alarmSpecificProblem = ProtoField.uint32("cdbsubscriberitf.len_alarmSpecificProblem","len_alarmSpecificProblem",base.DEC)
-	local f_alarmMonitoredAttribute = ProtoField.uint8("cdbsubscriberitf.alarmMonitoredAttribute","alarmMonitoredAttribute",base.DEC)
-	local f_alarmSpecificProblem = ProtoField.uint8("cdbsubscriberitf.alarmSpecificProblem","alarmSpecificProblem",base.DEC)
-	local f_objChgType = ProtoField.uint16("cdbsubscriberitf.objChgType","objChgType",base.DEC)
-	local f_objChgOriginator = ProtoField.uint16("cdbsubscriberitf.objChgOriginator","objChgOriginator",base.DEC)
-	local f_idxWithinObjChgReq = ProtoField.uint16("cdbsubscriberitf.idxWithinObjChgReq","idxWithinObjChgReq",base.DEC)
-	local f_lcc = ProtoField.uint32("cdbsubscriberitf.lcc","lcc",base.DEC)
-	local f_lccValue = ProtoField.uint32("cdbsubscriberitf.lccValue","lccValue",base.DEC)
-	local f_cmLccValue = ProtoField.uint32("cdbsubscriberitf.cmLccValue","cmLccValue",base.DEC)
-	local f_sourceIndicator = ProtoField.uint8("cdbsubscriberitf.sourceIndicator","sourceIndicator",base.DEC)
-	local f_additionalText = ProtoField.uint8("cdbsubscriberitf.additionalText","additionalText",base.DEC)
-	local f_fdnStrLen = ProtoField.uint32("cdbsubscriberitf.fdnStrLen","fdnStrLen",base.DEC)
-	local f_modifyStrLen = ProtoField.uint32("cdbsubscriberitf.modifyStrLen","modifyStrLen",base.DEC)
-	local f_fdnStr = ProtoField.uint8("cdbsubscriberitf.fdnStr","fdnStr",base.DEC)
-	local f_modifyStr = ProtoField.uint8("cdbsubscriberitf.modifyStr","modifyStr",base.DEC)
-	local f_resetReason = ProtoField.uint32("cdbsubscriberitf.resetReason","resetReason",base.DEC, vs_resetReason)
-	local f_parentOamInstanceIndex = ProtoField.uint16("cdbsubscriberitf.parentOamInstanceIndex", "parentOamInstanceIndex", base.DEC)
-	local f_data = ProtoField.uint16("cdbsubscriberitf.data","data",base.DEC)
-	local f_nbrOfInstanceId = ProtoField.uint16("cdbsubscriberitf.nbrOfInstanceId","nbrOfInstanceId", base.DEC)
-	local f_oamLteInstanceId = ProtoField.string("cdbsubscriberitf.oamLteInstanceId", "oamLteInstanceId", base.NONE)
-	local f_configDir = ProtoField.string("cdbsubscriberitf.configDir", "configDir", base.NONE)
-	local f_cbReplacement = ProtoField.new("cdbsubscriberitf.cbReplacement", "cbReplacement",ftypes.BOOLEAN, {}, base.NONE)
-	local f_typeOfIndication = ProtoField.uint32("cdbsubscriberitf.typeOfIndication", "typeOfIndication", base.DEC, vs_typeOfIndication)
-	local f_nbrOfDisabledObj = ProtoField.uint16("cdbsubscriberitf.nbrOfDisabledObj", "nbrOfDisabledObj", base.DEC)
-	local f_oamInstanceId = ProtoField.uint16("cdbsubscriberitf.oamInstanceId", "oamInstanceId", base.DEC)
-	local f_nbrOfAttrIds = ProtoField.uint16("cdbsubscriberitf.nbrOfAttrIds", "nbrOfAttrIds", base.DEC)
-	local f_attributeIds = ProtoField.uint16("cdbsubscriberitf.attributeIds", "attributeIds", base.DEC)
-	local f_nbrOfAttr = ProtoField.uint16("cdbsubscriberitf.nbrOfAttr", "nbrOfAttr", base.DEC)
-	local f_overflowType = ProtoField.uint32("cdbsubscriberitf.overflowType", "overflowType", base.DEC, vs_overflowType)
+    local f_family = ProtoField.uint16("cdbproxyitf.family","family",base.DEC,vs_familys)
+    local f_opcode = ProtoField.uint16("cdbproxyitf.opcode","opcode",base.DEC,vs_opcode)
+	local f_length = ProtoField.uint32("cdbproxyitf.length","len",base.DEC)
+	local f_transactionid = ProtoField.uint32("cdbproxyitf.transactionid","transactionid",base.DEC)
+	local f_destclass = ProtoField.uint16("cdbproxyitf.destclass","destclass",base.DEC,vs_classes)
+	local f_srcclass = ProtoField.uint16("cdbproxyitf.srcclass","srcclass",base.DEC,vs_classes)
+	local f_destinst = ProtoField.uint32("cdbproxyitf.destinst","destinst",base.HEX)
+	local f_srcinst = ProtoField.uint32("cdbproxyitf.srcinst","srcinst",base.HEX)
+	local f_tracekey = ProtoField.uint32("cdbproxyitf.tracekey","tracekey",base.HEX)
+	local f_oamclassref = ProtoField.uint16("cdbproxyitf.oamclassref","oamclassref",base.DEC)
+	local f_oaminstanceindex = ProtoField.uint16("cdbproxyitf.oaminstanceindex","oaminstanceindex",base.DEC)
+	local f_oamstatus = ProtoField.uint16("cdbproxyitf.oamstatus","oamstatus",base.DEC,{[0]="ACK"})
+	local f_nbrofinstances = ProtoField.uint16("cdbproxyitf.nbrofinstances","nbrofinstances",base.DEC)
+	local f_indexarray = ProtoField.string("cdbproxyitf.indexarray","indexarray",base.HEX)
+	local f_payloadlen = ProtoField.uint32("cdbproxyitf.payloadlen","payloadlen",base.DEC)
+	local f_payload = ProtoField.string("cdbproxyitf.payload","payload",base.NONE)
+	local f_nbrofchgattr = ProtoField.uint16("cdbproxyitf.nbrofchgattr","nbrofchgattr",base.DEC)
+	local f_chgattributes = ProtoField.string("cdbproxyitf.chgattributes","chgattributes",base.NONE)
+	local f_nbAttributesElements = ProtoField.uint16("cdbproxyitf.nbAttributesElements","nbAttributesElements",base.DEC)
+	local f_changeref = ProtoField.string("cdbproxyitf.changeref","changeref",base.NONE)
+	local f_successflag = ProtoField.uint16("cdbproxyitf.successflag","successflag",base.DEC,{[0]="ACK",[1]="NACK"})
+	local f_errordetail = ProtoField.string("cdbproxyitf.errordetail","errordetail",base.NONE)
+	local f_bulkadditionaltext = ProtoField.string("cdbproxyitf.bulkadditionaltext","bulkadditionaltext",base.NONE)
+	local f_nbravcninfores = ProtoField.uint16("cdbproxyitf.nbravcninfores","nbravcninfores",base.DEC)
+	local f_x2lcc_lcc = ProtoField.uint32("cdbproxyitf.x2lcc_lcc","x2lcc_lcc",base.DEC)
+	local f_x2lcc_lccvalue = ProtoField.uint32("cdbproxyitf.x2lcc_lccvalue","x2lcc_lccvalue",base.DEC)
+	local f_x2lcc_addtionaltext = ProtoField.string("cdbproxyitf.x2lcc_addtionaltext","x2lcc_addtionaltext",base.NONE)
+	local f_cmlcc_lcc = ProtoField.uint32("cdbproxyitf.cmlcc_lcc","cmlcc_lcc",base.DEC)
+	local f_cmlcc_lccvalue = ProtoField.uint32("cdbproxyitf.cmlcc_lccvalue","cmlcc_lccvalue",base.DEC)
+	local f_cmlcc_addtionaltext = ProtoField.string("cdbproxyitf.cmlcc_addtionaltext","cmlcc_addtionaltext",base.NONE)
+	local f_avcninfores_lcc = ProtoField.uint32("cdbproxyitf.avcninfores_lcc","avcninfores_lcc",base.DEC)
+	local f_avcninfores_lccvalue = ProtoField.uint32("cdbproxyitf.avcninfores_lccvalue","avcninfores_lccvalue",base.DEC)
+	local f_avcninfores_addtionaltext = ProtoField.string("cdbproxyitf.avcninfores_addtionaltext","avcninfores_addtionaltext",base.NONE)
+	local f_anrresettype = ProtoField.uint32("cdbproxyitf.anrresettype","anrresettype",base.DEC,vs_anrresettypes)
+	local f_forceincx2accesslcc = ProtoField.uint8("cdbproxyitf.forceincx2accesslcc","forceincx2accesslcc",base.DEC)
+	local f_nbrofchangedobj = ProtoField.uint16("cdbproxyitf.nbrofchangedobj","nbrofchangedobj",base.DEC)
+	local f_parentoamclassref = ProtoField.uint16("cdbproxyitf.parentoamclassref","parentoamclassref",base.DEC)
+	local f_parentoaminstanceid = ProtoField.uint16("cdbproxyitf.parentoaminstanceid","parentoaminstanceid",base.DEC)
+	local f_changetype = ProtoField.uint16("cdbproxyitf.changetype","changetype",base.DEC)
+	local f_changeweight = ProtoField.uint16("cdbproxyitf.changeweight","changeweight",base.DEC)
+	local f_exchangeweight = ProtoField.uint16("cdbproxyitf.exchangeweight","exchangeweight",base.DEC)
+	local f_forceincmolcc = ProtoField.uint8("cdbproxyitf.forceincmolcc","forceincmolcc",base.DEC)
+	local f_nbrofchangerefs = ProtoField.uint16("cdbproxyitf.nbrofchangerefs","nbrofchangerefs",base.DEC)
+	local f_changerefs = ProtoField.string("cdbproxyitf.changerefs","changerefs",base.NONE)
+	local f_actiontype = ProtoField.uint32("cdbproxyitf.actiontype","actiontype",base.DEC)
+	local f_actionerrormessagelen = ProtoField.uint32("cdbproxyitf.actionerrormessagelen","actionerrormessagelen",base.DEC)
+	local f_actionerrormessage = ProtoField.string("cdbproxyitf.actionerrormessage","actionerrormessage",base.NONE)
+	local f_fdnlength = ProtoField.uint16("cdbproxyitf.fdnlength","fdnlength",base.DEC)
+	local f_reference = ProtoField.uint32("cdbproxyitf.reference","reference",base.DEC)
+	local f_status = ProtoField.uint16("cdbproxyitf.status","status",base.DEC)
+	local f_cdbstatus = ProtoField.uint16("cdbproxyitf.cdbstatus","cdbstatus",base.DEC,{[0]="UNLOCK",[1]="LOCK"})
+	local f_triggeractiontype = ProtoField.uint32("cdbproxyitf.triggeractiontype","triggeractiontype",base.DEC,vs_triggeractiontype)
+	local f_objecttype = ProtoField.uint32("cdbproxyitf.objecttype","objecttype",base.DEC)
+	local f_objectinstance = ProtoField.uint32("cdbproxyitf.objectinstance","objectinstance",base.DEC)
+	local f_faultnumber = ProtoField.uint16("cdbproxyitf.faultnumber","faultnumber",base.DEC)
+	local f_faultsubnumber = ProtoField.uint16("cdbproxyitf.faultsubnumber","faultsubnumber",base.DEC)
+	local f_manuinfolength = ProtoField.uint32("cdbproxyitf.manuinfolength","manuinfolength",base.DEC)
+	local f_manuinfo = ProtoField.string("cdbproxyitf.manuinfo","manuinfo",base.NONE)
+	local f_perceivedseverity = ProtoField.uint32("cdbproxyitf.perceivedseverity","perceivedseverity",base.DEC)
+	local f_nbAttributes = ProtoField.uint16("cdbproxyitf.nbAttributes","nbAttributes",base.DEC)
+	local f_attributes = ProtoField.string("cdbproxyitf.attributes","attributes",base.NONE)
+	local f_nbrOfAvcnAttr = ProtoField.uint16("cdbproxyitf.nbrOfAvcnAttr","nbrOfAvcnAttr",base.DEC)
+	local f_avcnAttributes = ProtoField.string("cdbproxyitf.avcnAttributes","avcnAttributes",base.NONE)
+	local f_nbrOfSvcnAttr = ProtoField.uint16("cdbproxyitf.nbrOfSvcnAttr","nbrOfSvcnAttr",base.DEC)
+	local f_svcnAttributes = ProtoField.string("cdbproxyitf.svcnAttributes","svcnAttributes",base.NONE)
+	local f_alarmLastChangeCounter = ProtoField.uint32("cdbproxyitf.alarmLastChangeCounter","alarmLastChangeCounter",base.DEC)
+	local f_len_managedObjectInstance = ProtoField.uint32("cdbproxyitf.len_managedObjectInstance","len_managedObjectInstance",base.DEC)
+	local f_managedObjectInstance = ProtoField.string("cdbproxyitf.managedObjectInstance","managedObjectInstance",base.NONE)
+	local f_len_alarmTime = ProtoField.uint32("cdbproxyitf.len_alarmTime","len_alarmTime",base.DEC)
+	local f_alarmTime = ProtoField.string("cdbproxyitf.alarmTime","alarmTime",base.NONE)
+	local f_alarmType = ProtoField.int32("cdbproxyitf.alarmType","alarmType",base.DEC)
+	local f_alarmSeverity = ProtoField.int32("cdbproxyitf.alarmSeverity","alarmSeverity",base.DEC)
+	local f_alarmId = ProtoField.int32("cdbproxyitf.alarmId","alarmId",base.DEC)
+	local f_len_alarmAdditionalInformation = ProtoField.uint32("cdbproxyitf.len_alarmAdditionalInformation","len_alarmAdditionalInformation",base.DEC)
+	local f_alarmAdditionalInformation = ProtoField.string("cdbproxyitf.alarmAdditionalInformation","alarmAdditionalInformation",base.NONE)
+	local f_alarmOperationalState = ProtoField.int32("cdbproxyitf.alarmOperationalState","alarmOperationalState",base.DEC)
+	local f_alarmAvailabilityStatus = ProtoField.uint32("cdbproxyitf.alarmAvailabilityStatus","alarmAvailabilityStatus",base.DEC)
+	local f_numberOfFilteredAlarmsSinceLastReporting = ProtoField.int32("cdbproxyitf.numberOfFilteredAlarmsSinceLastReporting","numberOfFilteredAlarmsSinceLastReporting",base.DEC)
+	local f_len_lastFilteringTime = ProtoField.uint32("cdbproxyitf.len_lastFilteringTime","len_lastFilteringTime",base.DEC)
+	local f_lastFilteringTime = ProtoField.string("cdbproxyitf.lastFilteringTime","lastFilteringTime",base.NONE)
+	local f_lastFilteringType = ProtoField.int32("cdbproxyitf.lastFilteringType","lastFilteringType",base.DEC)
+	local f_alarmNature = ProtoField.int32("cdbproxyitf.alarmNature","alarmNature",base.DEC)
+	local f_len_alarmMonitoredAttribute = ProtoField.uint32("cdbproxyitf.len_alarmMonitoredAttribute","len_alarmMonitoredAttribute",base.DEC)
+	local f_len_alarmSpecificProblem = ProtoField.uint32("cdbproxyitf.len_alarmSpecificProblem","len_alarmSpecificProblem",base.DEC)
+	local f_alarmMonitoredAttribute = ProtoField.string("cdbproxyitf.alarmMonitoredAttribute","alarmMonitoredAttribute",base.NONE)
+	local f_alarmSpecificProblem = ProtoField.string("cdbproxyitf.alarmSpecificProblem","alarmSpecificProblem",base.NONE)
+	local f_objChgType = ProtoField.uint16("cdbproxyitf.objChgType","objChgType",base.DEC)
+	local f_objChgOriginator = ProtoField.uint16("cdbproxyitf.objChgOriginator","objChgOriginator",base.DEC)
+	local f_idxWithinObjChgReq = ProtoField.uint16("cdbproxyitf.idxWithinObjChgReq","idxWithinObjChgReq",base.DEC)
+	local f_lcc = ProtoField.uint32("cdbproxyitf.lcc","lcc",base.DEC)
+	local f_lccValue = ProtoField.uint32("cdbproxyitf.lccValue","lccValue",base.DEC)
+	local f_cmLccValue = ProtoField.uint32("cdbproxyitf.cmLccValue","cmLccValue",base.DEC)
+	local f_sourceIndicator = ProtoField.uint8("cdbproxyitf.sourceIndicator","sourceIndicator",base.DEC)
+	local f_additionalText = ProtoField.string("cdbproxyitf.additionalText","additionalText",base.NONE)
+	local f_fdnStrLen = ProtoField.uint32("cdbproxyitf.fdnStrLen","fdnStrLen",base.DEC)
+	local f_modifyStrLen = ProtoField.uint32("cdbproxyitf.modifyStrLen","modifyStrLen",base.DEC)
+	local f_fdnStr = ProtoField.uint8("cdbproxyitf.fdnStr","fdnStr",base.DEC)
+	local f_modifyStr = ProtoField.uint8("cdbproxyitf.modifyStr","modifyStr",base.DEC)
+	local f_resetReason = ProtoField.uint32("cdbproxyitf.resetReason","resetReason",base.DEC, vs_resetReason)
+	local f_parentOamInstanceIndex = ProtoField.uint16("cdbproxyitf.parentOamInstanceIndex", "parentOamInstanceIndex", base.DEC)
+	local f_data = ProtoField.uint8("cdbproxyitf.data","data",base.DEC)
+	local f_nbrOfInstanceId = ProtoField.uint16("cdbproxyitf.nbrOfInstanceId","nbrOfInstanceId", base.DEC)
+	local f_oamLteInstanceId = ProtoField.string("cdbproxyitf.oamLteInstanceId", "oamLteInstanceId", base.NONE)
+	local f_configDir = ProtoField.string("cdbproxyitf.configDir", "configDir", base.NONE)
+	local f_cbReplacement = ProtoField.new("cdbproxyitf.cbReplacement", "cbReplacement",ftypes.BOOLEAN, {}, base.NONE)
+	local f_typeOfIndication = ProtoField.uint32("cdbproxyitf.typeOfIndication", "typeOfIndication", base.DEC, vs_typeOfIndication)
+	local f_nbrOfDisabledObj = ProtoField.uint16("cdbproxyitf.nbrOfDisabledObj", "nbrOfDisabledObj", base.DEC)
+	local f_oamInstanceId = ProtoField.uint16("cdbproxyitf.oamInstanceId", "oamInstanceId", base.DEC)
+	local f_nbrOfAttrIds = ProtoField.uint16("cdbproxyitf.nbrOfAttrIds", "nbrOfAttrIds", base.DEC)
+	local f_attributeIds = ProtoField.uint16("cdbproxyitf.attributeIds", "attributeIds", base.DEC)
+	local f_nbrOfAttr = ProtoField.uint16("cdbproxyitf.nbrOfAttr", "nbrOfAttr", base.DEC)
+	local f_overflowType = ProtoField.uint32("cdbproxyitf.overflowType", "overflowType", base.DEC, vs_overflowType)
+	local f_classNotifyInd = ProtoField.uint8("cdbproxyitf.classNotifyInd","classNotifyInd",base.DEC)
+	local f_onlineTransactionId = ProtoField.uint32("cdbproxyitf.onlineTransactionId","onlineTransactionId",base.DEC)
+	local f_ccmActionRequired = ProtoField.uint8("cdbproxyitf.ccmActionRequired","ccmActionRequired",base.DEC)	
+	local f_probableCause = ProtoField.uint32("cdbproxyitf.probableCause","probableCause",base.DEC)
+	local f_specificCause = ProtoField.uint32("cdbproxyitf.specificCause","specificCause",base.DEC)
+	local f_manufInfoLength = ProtoField.uint32("cdbproxyitf.manufInfoLength","manufInfoLength",base.DEC)
+	local f_actionStatus = ProtoField.uint32("cdbproxyitf.actionStatus","actionStatus",base.DEC)
+	local f_modemErrorCode = ProtoField.uint32("cdbproxyitf.modemErrorCode","modemErrorCode",base.DEC)
+	local f_sequenceNbr = ProtoField.uint32("cdbproxyitf.sequenceNbr","sequenceNbr",base.DEC)
+	local f_measurementIdentification = ProtoField.uint32("cdbproxyitf.measurementIdentification","measurementIdentification",base.DEC)
+	local f_measurementDataLength = ProtoField.uint32("cdbproxyitf.measurementDataLength","measurementDataLength",base.DEC)
+	local f_measurementData = ProtoField.string("cdbproxyitf.measurementData","measurementData",base.NONE)
 	
 	--把ProtoField对象加到Proto对象上
-	p_cdbsubscriberitf.fields = { f_family, f_opcode, f_length, f_transactionid, f_destclass, f_srcclass, f_destinst, f_srcinst, f_tracekey, 
+	P_cdbproxyitf.fields = { f_family, f_opcode, f_length, f_transactionid, f_destclass, f_srcclass, f_destinst, f_srcinst, f_tracekey, 
 									f_objChgType, f_objChgOriginator, f_idxWithinObjChgReq, f_lcc, f_lccValue, f_cmLccValue, 
 									f_resetReason, f_parentOamInstanceIndex, f_data, f_nbrOfInstanceId, f_oamLteInstanceId, f_configDir,
 									f_cbReplacement, f_typeOfIndication, f_nbrOfDisabledObj, f_oamInstanceId, f_attributeIds, f_nbrOfAttrIds,
@@ -376,20 +415,20 @@ do
 									f_alarmLastChangeCounter, f_alarmSpecificProblem, f_alarmMonitoredAttribute, f_len_alarmSpecificProblem, f_len_alarmMonitoredAttribute,
 									f_alarmNature, f_lastFilteringType, f_lastFilteringTime, f_len_lastFilteringTime, f_numberOfFilteredAlarmsSinceLastReporting,
 									f_alarmAvailabilityStatus, f_alarmOperationalState, f_alarmAdditionalInformation, f_len_alarmAdditionalInformation,
-									f_alarmId, f_alarmSeverity, f_alarmType, f_alarmTime, f_len_alarmTime, f_managedObjectInstance, f_len_managedObjectInstance  }
+									f_alarmId, f_alarmSeverity, f_alarmType, f_alarmTime, f_len_alarmTime, f_managedObjectInstance, f_len_managedObjectInstance, f_classNotifyInd, f_onlineTransactionId, f_ccmActionRequired, f_probableCause, f_specificCause, f_manufInfoLength, f_actionStatus, f_modemErrorCode, f_sequenceNbr, f_measurementIdentification, f_measurementDataLength, f_measurementData}
 
     --用Dissector.get函数可以获得另外一个协议的解析组件
-    --local data_dis = Dissector.get("data")
+    --local data_dis = Dissector.getd("data")
 
     --为Proto对象添加一个名为dissector的函数，
     --Wireshark会对每个“相关”数据包调用这个函数
-    function p_cdbsubscriberitf.dissector(buf,pkt,root) 
+    function P_cdbproxyitf.dissector(buf,pkt,root) 
 
 		local offset = 0
 		local buf_len = buf:len()
 		
         --root:add会在Packet Details窗格中增加一行协议
-        local t = root:add(p_cdbsubscriberitf,buf:range(offset))
+        local t = root:add(P_cdbproxyitf,buf:range(offset))
         --t:add，在Packet Details窗格中增加一行属性，
         --并指定要鼠标点击该属性时Packet Bytes窗格中会选中哪些字节
         t:add(f_family,buf:range(offset,2))
@@ -416,6 +455,273 @@ do
 		
 		--用switch语句判断是哪条消息，再具体分析每条消息的特定字段
 		local switch = {
+			[1] = function()	--oam_callp_subscribe
+				t:add(f_classNotifyInd,buf:range(offset,OAM_L_CLASSREF_MAX))
+				offset = offset + OAM_L_CLASSREF_MAX + 1
+			end,
+			[2] = function()	--MT_CALLP_getAttributeReq
+				t:add(f_oamclassref,buf:range(offset,2))
+				offset = offset + 2
+				t:add(f_oaminstanceindex,buf:range(offset,2))
+				offset = offset + 2
+			end,
+			[3] = function()	--MT_CALLP_getAttributeRes
+				t:add(f_oamclassref,buf:range(offset,2))
+				offset = offset + 2
+				t:add(f_oaminstanceindex,buf:range(offset,2))
+				offset = offset + 2
+				t:add(f_data,buf:range(offset,1))
+				offset = offset + 1
+			end,
+			[4] = function()	--MT_CALLP_getAttributeFailure
+				t:add(f_oamclassref,buf:range(offset,2))
+				offset = offset + 2
+				t:add(f_oaminstanceindex,buf:range(offset,2))
+				offset = offset + 2
+				t:add(f_oamstatus,buf:range(offset,2))
+				offset = offset + 2
+			end,
+			[5] = function()	--MT_CALLP_createObjectReq
+				t:add(f_oamclassref,buf:range(offset,2))
+				offset = offset + 2 
+				t:add(f_oaminstanceindex,buf:range(offset,2))
+				offset = offset + 2
+				t:add(f_parentoamclassref,buf:range(offset,2))
+				offset = offset + 2
+				t:add(f_parentOamInstanceIndex,buf:range(offset,2))
+				offset = offset + 2 
+				t:add(f_onlineTransactionId,buf:range(offset,4))
+				offset = offset + 4 
+				t:add(f_data,buf:range(offset,1))
+				offset = offset + 1
+			end,
+			[6] = function()	--MT_CALLP_createObjectRes
+				t:add(f_oamclassref,buf:range(offset,2))
+				offset = offset + 2
+				t:add(f_oaminstanceindex,buf:range(offset,2))
+				offset = offset + 2
+				t:add(f_oamstatus,buf:range(offset,2))
+				offset = offset + 4 	
+				t:add(f_onlineTransactionId,buf:range(offset,4))
+				offset = offset + 4
+			end,
+ 			[7] = function()	--MT_CALLP_deleteObjectReq
+				t:add(f_oamclassref,buf:range(offset,2))
+				offset = offset + 2
+				t:add(f_oaminstanceindex,buf:range(offset,2))
+				offset = offset + 2	
+				t:add(f_onlineTransactionId,buf:range(offset,4))
+				offset = offset + 4
+			end,
+			[8] = function()	--MT_CALLP_deleteObjectRes
+				t:add(f_oamclassref,buf:range(offset,2))
+				offset = offset + 2
+				t:add(f_oaminstanceindex,buf:range(offset,2))
+				offset = offset + 2
+				t:add(f_oamstatus,buf:range(offset,2))
+				offset = offset + 4 	
+				t:add(f_onlineTransactionId,buf:range(offset,4))
+				offset = offset + 4
+			end,
+			[9] = function()	--MT_CALLP_modifyObjectReq
+				t:add(f_oamclassref,buf:range(offset,2))
+				offset = offset + 2
+				t:add(f_oaminstanceindex,buf:range(offset,2))
+				offset = offset + 2
+				t:add(f_nbAttributesElements,buf:range(offset,2))
+				offset = offset + 2
+				t:add(f_changeref,buf:range(offset,1 * OAM_L_ATTRIBUTE_NAME_MAX))
+				offset = offset + 1 * OAM_L_ATTRIBUTE_NAME_MAX + 3
+				t:add(f_onlineTransactionId,buf:range(offset,4))
+				offset = offset + 4 
+				t:add(f_data,buf:range(offset,1))
+				offset = offset + 1
+			end,
+			[10] = function()	--MT_CALLP_modifyObjectRes
+				t:add(f_oamclassref,buf:range(offset,2))
+				offset = offset + 2
+				t:add(f_oaminstanceindex,buf:range(offset,2))
+				offset = offset + 2
+				t:add(f_oamstatus,buf:range(offset,2))
+				offset = offset + 4 	
+				t:add(f_onlineTransactionId,buf:range(offset,4))
+				offset = offset + 4
+			end,
+			[11] = function()	--MT_CALLP_setAttributeReq
+				t:add(f_oamclassref,buf:range(offset,2))
+				offset = offset + 2
+				t:add(f_oaminstanceindex,buf:range(offset,2))
+				offset = offset + 2
+				t:add(f_nbAttributes,buf:range(offset,2))
+				offset = offset + 4
+				text_len = buf_len - offset
+				t:add(f_attributes,buf:range(offset,text_len))
+				offset = offset + text_len
+			end,
+			[12] = function()	--MT_CALLP_setAttributeRes
+				t:add(f_oamclassref,buf:range(offset,2))
+				offset = offset + 2
+				t:add(f_oaminstanceindex,buf:range(offset,2))
+				offset = offset + 2
+				t:add(f_oamstatus,buf:range(offset,2))
+				offset = offset + 4
+			end,
+			[13] = function()	--MT_CALLP_avcnIndication
+				t:add(f_oamclassref,buf:range(offset,2))
+				offset = offset + 2
+				t:add(f_oaminstanceindex,buf:range(offset,2))
+				offset = offset + 2
+				t:add(f_nbAttributes,buf:range(offset,2))
+				offset = offset + 4
+				t:add(f_attributes,buf:range(offset, 12 * OAM_L_ATTRIBUTE_NAME_MAX))
+				offset = 12 * OAM_L_ATTRIBUTE_NAME_MAX
+			end,
+			[14] = function()	--MT_CALLP_readyIndication
+			end,
+			[15] = function()	--MT_CALLP_faultIndication
+				t:add(f_ccmActionRequired,buf:range(offset,1))
+				offset = offset + 2 
+				t:add(f_alarmType,buf:range(offset,2))
+				offset = offset + 2 
+				t:add(f_probableCause,buf:range(offset,4))
+				offset = offset + 4
+				t:add(f_objecttype,buf:range(offset,4))
+				offset = offset + 4 
+				t:add(f_objectinstance,buf:range(offset,4))
+				offset = offset + 4 
+				t:add(f_specificCause,buf:range(offset,4))
+				offset = offset + 4 
+				t:add(f_perceivedseverity,buf:range(offset,4))
+				offset = offset + 4 
+				t:add(f_manuinfolength,buf:range(offset,4))
+				offset = offset + 4
+				t:add(f_manuinfo,buf:range(offset,1))
+				offset = offset + 1
+			end,
+			[16] = function()	--MT_CALLP_eventIndication
+				t:add(f_objecttype,buf:range(offset,4))
+				offset = offset + 4
+				t:add(f_objectinstance,buf:range(offset,4))
+				offset = offset + 4
+				t:add(f_specificCause,buf:range(offset,4))
+				offset = offset + 4 
+				t:add(f_manufInfoLength,buf:range(offset,4))
+				offset = offset + 4 
+				t:add(f_manufInfo,buf:range(offset,1))
+				offset = offset + 1
+			end,
+			[17] = function()	--MT_CALLP_createObjectIndication
+				t:add(f_oamclassref,buf:range(offset,2))
+				offset = offset + 2
+				t:add(f_parentoamclassref, buf:range(offset,2))
+				offset = offset + 2
+				t:add(f_parentOamInstanceIndex, buf:range(offset,2))
+				offset = offset + 2 
+				text_len = buf_len - offset
+				t:add(f_data,buf:range(offset,text_len))
+				offset = offset + text_len
+			end,
+			[18] = function()	--MT_CALLP_deleteObjectIndication
+				t:add(f_oamclassref,buf:range(offset,2))
+				offset = offset + 2
+				t:add(f_oaminstanceindex,buf:range(offset,2))
+				offset = offset + 2
+			end,
+			[19] = function()	--MT_CALLP_modifyObjectIndication
+				t:add(f_oamclassref,buf:range(offset,2))
+				offset = offset + 2
+				t:add(f_oaminstanceindex,buf:range(offset,2))
+				offset = offset + 2
+				t:add(f_nbAttributesElements,buf:range(offset,2))
+				offset = offset + 2
+				t:add(f_changeref,buf:range(offset,1*OAM_L_ATTRIBUTE_NAME_MAX))
+				offset = offset + 1*OAM_L_ATTRIBUTE_NAME_MAX
+				text_len = buf_len - offset
+				t:add(f_data,buf:range(offset,text_len))
+				offset = offset + text_len
+			end,
+			[20] = function()	--MT_CALLP_transactionBegin
+				t:add(f_onlineTransactionId,buf:range(offset,4))
+				offset = offset + 4 
+			end,
+			[21] = function()	--MT_CALLP_transactionEnd
+				t:add(f_status,buf:range(offset,4))
+				offset = offset + 4
+				t:add(f_onlineTransactionId,buf:range(offset,4))
+				offset = offset + 4 
+			end,
+			[22] = function()	--MT_CALLP_transactionEndResponse
+				t:add(f_specificCause,buf:range(offset,4))
+				offset = offset + 4 
+				t:add(f_onlineTransactionId,buf:range(offset,4))
+				offset = offset + 4 
+			end,
+			[23] = function()	--MT_CALLP_actionRequest
+				t:add(f_oamclassref,buf:range(offset,2))
+				offset = offset + 2
+				t:add(f_oaminstanceindex,buf:range(offset,2))
+				offset = offset + 2
+				t:add(f_parentoamclassref,buf:range(offset,2))
+				offset = offset + 2
+				t:add(f_parentOamInstanceIndex,buf:range(offset,2))
+				offset = offset + 2 
+				t:add(f_actiontype,buf:range(offset,4))
+				offset = offset + 4 
+				text_len = buf_len - offset
+				t:add(f_data,buf:range(offset,text_len))
+				offset = offset + text_len				
+			end,
+			[24] = function()	--MT_CALLP_actionRes
+				t:add(f_oamclassref,buf:range(offset,2))
+				offset = offset + 2
+				t:add(f_oaminstanceindex,buf:range(offset,2))
+				offset = offset + 2	
+				t:add(f_actiontype,buf:range(offset,4))
+				offset = offset + 4 
+				t:add(f_actionStatus,buf:range(offset,4))
+				offset = offset + 4 
+				t:add(f_modemErrorCode,buf:range(offset,4))
+				offset = offset + 4 
+			end,
+			[25] = function()	--MT_CALLP_measurementIndication
+				t:add(f_oamclassref,buf:range(offset,2))
+				offset = offset + 2
+				t:add(f_oaminstanceindex,buf:range(offset,2))
+				offset = offset + 2	
+				t:add(f_sequenceNbr,buf:range(offset,4))
+				offset = offset + 4 
+				t:add(f_dspTime,buf:range(offset,4))
+				offset = offset + 4 
+				t:add(f_measurementIdentification,buf:range(offset,4))
+				offset = offset + 4 
+				t:add(f_measurementDataLength,buf:range(offset,4))
+				offset = offset + 4 
+				text_len = buf_len - offset
+				t:add(f_measurementData,buf:range(offset,text_len))
+				offset = offset + text_len	
+			end,
+			[26] = function()	--MT_CALLP_getDynAttributeReq
+				t:add(f_oamclassref,buf:range(offset,2))
+				offset = offset + 2
+				t:add(f_oaminstanceindex,buf:range(offset,2))
+				offset = offset + 2
+				t:add(f_parentoamclassref,buf:range(offset,2))
+				offset = offset + 2
+				t:add(f_parentOamInstanceIndex,buf:range(offset,2))
+				offset = offset + 2 
+			end,
+			[27] = function()	--MT_CALLP_getDynAttributeRes
+				t:add(f_oamclassref,buf:range(offset,2))
+				offset = offset + 2
+				t:add(f_oaminstanceindex,buf:range(offset,2))
+				offset = offset + 2
+				t:add(f_oamstatus,buf:range(offset,2))
+				offset = offset + 2 
+				text_len = buf_len - offset
+				t:add(f_payload,buf:range(offset,text_len))
+				offset = offset + text_len	
+			end,
+			
 			[100] = function()   --MT_OAMC_getAttributeReq 
 				t:add(f_oamclassref,buf:range(offset,2))
 				offset = offset + 2
@@ -756,7 +1062,7 @@ do
 				offset = offset + 4
 				t:add(f_len_managedObjectInstance,buf:range(offset,4))
 				offset = offset + 4
-				t:add(f_managedObjectInstance,buf:range(offset,4*OAM_MAX_OID_LEN))
+				t:add(f_managedObjectInstance,buf:range(offset,OAM_MAX_OID_LEN))
 				offset = offset + 4*OAM_MAX_OID_LEN
 				t:add(f_len_alarmTime,buf:range(offset,4))
 				offset = offset + 4
@@ -957,6 +1263,6 @@ do
     local tce_port_table = DissectorTable.get("tcp.port")
 
     --为TCP的60100端口注册这个Proto对象，表明这个插件是解析60100端口的netconf消息
-    --当遇到源或目的为TCP60100的数据包，就会调用上面的p_cdbsubscriberitf.dissector函数
-    tce_port_table:add(60100,p_cdbsubscriberitf)
+    --当遇到源或目的为TCP60100的数据包，就会调用上面的P_cdbproxyitf.dissector函数
+    tce_port_table:add(60100,P_cdbproxyitf)
 end
